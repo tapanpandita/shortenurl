@@ -26,7 +26,10 @@ def trevnoc(key, keys=KEYS):
 def redirect(request, key):
     db = redis.Redis('localhost')
     redirectURI = db.get(key)
-    return HttpResponseRedirect(redirectURI)
+    if redirectURI == None:
+        return HttpResponse("that url does not exist")
+    else:
+        return HttpResponseRedirect(redirectURI)
 
 def urlForm(request):
     if request.method == 'POST':
