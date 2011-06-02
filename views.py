@@ -1,6 +1,7 @@
 from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import render_to_response
 from shortenurl.forms import UrlForm
+import urllib2
 import redis
 
 HOST_URL = 'http://localhost:8000/'
@@ -36,15 +37,21 @@ def urlForm(request):
         form = UrlForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
-            url = cd['url']
+            formUrl = cd['url'] #change name to url to undo redirection checking
+            url = urllib2.urlopen(formUrl).geturl() # comment this line to undo redirection checking
             db = redis.Redis('localhost')
-            counter = int(db.get('counter'))
-            urlkey = convert(counter)
-            if db.set(urlkey, url):
-                db.incr('counter')
+            checkurl = db.get(url)
+            if checkurl != None:
+                urlkey = checkurl
                 urlid = urlkey
             else:
-                urlid = 'error'
+                counter = int(db.get('counter'))
+                urlkey = convert(counter)
+                if db.set(urlkey, url) and db.set(url, urlkey):
+                    db.incr('counter')
+                    urlid = urlkey
+                else:
+                    urlid = 'error'
             return HttpResponseRedirect('/shorten/?urlid='+urlid)
     else:
         form = UrlForm()
@@ -56,4 +63,4 @@ def shorten(request, hosturl=HOST_URL):
     if urlid == 'error' or url == None:
         return HttpResponse('there was an error in shortening that url')
     else:
-        return HttpResponse(hosturl+urlid+' ---> '+url)
+        return HttpResponse('<a href='+hosturl+urlid+'>'+hosturl+urlid+'</a> ---> '+url)
